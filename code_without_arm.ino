@@ -1,0 +1,121 @@
+#include <PestoLink-Receive.h>
+#include <Alfredo_NoU3.h>
+#include <constants.h>
+
+// Motors                         //- 654321 +//
+NoU_Motor frontLeftMotor(1);      //5        4//
+NoU_Motor frontRightMotor(8);     //6        3//
+NoU_Motor backLeftMotor(4);       //7        2//
+NoU_Motor backRightMotor(5);      //8        1//
+NoU_Motor intakeMotor(3);         //+  USBC  -//
+
+// Servos
+NoU_Servo stageI(1);
+NoU_Servo stageII(2);
+NoU_Servo clawServo(3);
+
+// Global State
+float intakeT = 0;
+float angleI = 45.0; 
+float angleII = 130.0;
+float clawAngle = grab;
+
+float angular_scale;
+float measured_angle;
+
+// Drivetrain
+
+void setup() {
+  PestoLink.begin("Minifrc11.5");
+  Serial.begin(115200);
+
+  NoU3.begin();
+  NoU3.setServiceLight(LIGHT_ENABLED);
+
+  frontLeftMotor.setBrakeMode(true);
+  frontRightMotor.setBrakeMode(true);
+  backLeftMotor.setBrakeMode(true);
+  backRightMotor.setBrakeMode(true);
+
+  measured_angle = 32.8275; // Tune this by spinning 5 full times
+  angular_scale = (5.0 * 2.0 * PI) / measured_angle;
+  NoU3.calibrateIMUs(); // Takes exactly 1 second
+}
+
+void loop() {
+  chassis(); 
+  
+}
+
+float tuneMotorPower(float input, float deadband, float minPower, float maxPower, float exponent = 1.0) {
+  if (fabs(input) < deadband) return 0;
+
+  float sign = (input >= 0) ? 1.0 : -1.0;
+  float curved = pow(fabs(input), exponent);
+  float scaled = curved * maxPower;
+
+  if (scaled < minPower) return 0;
+  return sign * scaled;
+}
+
+
+void chassis() {
+  if (PestoLink.update()) {
+    float y = -PestoLink.getAxis(1);
+    float x = PestoLink.getAxis(0);
+    float rx = PestoLink.getAxis(2);
+
+    // Drive tuning parameters
+    constexpr float DEADBAND = 0.1;
+    constexpr float MIN_POWER = 0.4;
+    constexpr float MAX_POWER = 0.75;
+    constexpr float INPUT_EXPONENT = 1.4;  // Try 1.0 (linear), 2.0 (quadratic), etc.
+
+    // Apply deadband & curve shaping to inputs before rotation math
+    x  = tuneMotorPower(x,  DEADBAND, MIN_POWER, MAX_POWER, INPUT_EXPONENT);
+    y  = tuneMotorPower(y,  DEADBAND, MIN_POWER, MAX_POWER, INPUT_EXPONENT);
+    rx = tuneMotorPower(rx, DEADBAND, MIN_POWER, MAX_POWER, INPUT_EXPONENT);
+
+    float botHeading = NoU3.yaw * angular_scale;
+
+    float rotX = x * cos(-botHeading) - y * sin(-botHeading);
+    float rotY = x * sin(-botHeading) + y * cos(-botHeading);
+    rotX = rotX * 1.1;
+
+    float calc = fabs(rotY) + fabs(rotX) + fabs(rx);
+    float denominator = (calc >= 1) ? calc : 1.0;
+
+    float frontLeftPower  = (rotY + rotX + rx) / denominator;
+    float backLeftPower   = (rotY - rotX + rx) / denominator;
+    float frontRightPower = (rotY - rotX - rx) / denominator;
+    float backRightPower  = (rotY + rotX - rx) / denominator;
+
+    // Apply motor output shaping after normalization
+    frontLeftPower  = tuneMotorPower(frontLeftPower, 0, MIN_POWER, MAX_POWER);
+    backLeftPower   = tuneMotorPower(backLeftPower,  0, MIN_POWER, MAX_POWER);
+    frontRightPower = tuneMotorPower(frontRightPower, 0, MIN_POWER, MAX_POWER);
+    backRightPower  = tuneMotorPower(backRightPower,  0, MIN_POWER, MAX_POWER);
+
+    frontLeftMotor.set(frontLeftPower);
+    backLeftMotor.set(backLeftPower);
+    frontRightMotor.set(frontRightPower);
+    backRightMotor.set(backRightPower);
+    NoU3.setServiceLight(LIGHT_ENABLED);
+
+    // Battery voltage telemetry
+    float batteryVoltage = NoU3.getBatteryVoltage();
+    PestoLink.printBatteryVoltage(batteryVoltage);
+
+    if(PestoLink.buttonHeld(MID_LEFT)){
+      NoU3.yaw=0; 
+    }
+  } else {
+    frontLeftMotor.set(0);
+    backLeftMotor.set(0);
+    frontRightMotor.set(0);
+    backRightMotor.set(0);
+    NoU3.setServiceLight(LIGHT_DISABLED);
+  }
+}
+
+
