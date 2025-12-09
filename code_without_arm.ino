@@ -2,12 +2,12 @@
 #include <Alfredo_NoU3.h>
 #include <constants.h>
 
-// Motors                         //- 654321 +//
-NoU_Motor frontLeftMotor(1);      //5        4//
-NoU_Motor frontRightMotor(8);     //6        3//
-NoU_Motor backLeftMotor(4);       //7        2//
-NoU_Motor backRightMotor(5);      //8        1//
-NoU_Motor intakeMotor(3);         //+  USBC  -//
+// Motors                         
+NoU_Motor frontLeftMotor(4);      
+NoU_Motor frontRightMotor(1);     
+NoU_Motor backLeftMotor(8);       
+NoU_Motor backRightMotor(5);      
+NoU_Motor intakeMotor(3);         
 
 // Servos
 NoU_Servo stageI(1);
@@ -116,6 +116,12 @@ void chassis() {
     backRightMotor.set(0);
     NoU3.setServiceLight(LIGHT_DISABLED);
   }
+}
+
+
+void claw() {
+
+  
 }
 
 
