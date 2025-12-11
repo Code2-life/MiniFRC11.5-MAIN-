@@ -1,0 +1,32 @@
+positions based on the https://docs.google.com/document/d/1dBQ8hG7Ahd0A3vBbph6stw0u3Ken983xtsXUe14FDR4/edit?tab=t.0
+field overview :
+
+    TOP (left), looking down
+
+                                     abyss    processor
+        ############################|      |#|      |###########################
+        #                                   #                                 #
+        #                                   #                                 #
+        #     #                             #                           #     #
+        #                                   #                                 #
+        #                                   #                                 #
+        #                  reef zone        #         reef zone               #
+        #     #                #            #             #             #     #
+        #                                   #                                 #
+        #                                   #                                 #
+        #                                   #                                 #
+        #     #                             #                           #     #
+        #                                   #                                 #
+        #                                   #                                 #
+        ############################|      |#|      |##########################
+                                processor      abyss
+
+                                                            TOP (left), looking down
+BLUE SIDE                                                                   RED SIDE
+
+the version that looking down to the other team, and youre on the left is called "left"
+the other, is called right
+
+you start on the middle, facing inwards to YOUR side. 
+
+
