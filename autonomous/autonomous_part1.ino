@@ -1,3 +1,5 @@
+//angel
+
 #include <constant_s.h> //IMPORTANT
 #include <src/Alfredo_NoU3.h> // cool thing to have
 
@@ -21,7 +23,7 @@ float angleI = 45.0;
 float angleII = 130.0;
 float clawAngle = grab;
 
-unsigned float r_angle = 0;
+float yaw = 0;
 
 void setup() {
   PestoLink.begin("Minifrc11.5"); //damn i WANT to change the name
@@ -69,44 +71,90 @@ unsigned long started = millis();
 
 // ask stone if russel can bring his guitar and play it tmrw at lunch
 
-
-void oneDimentional(float power) {
-    frontLeftMotor.set(power);
-    frontRightMotor.set(-1 * power);
-    backLeftMotor.set(-1 * power);
-    backLeftMotor.set(power);
+void STOP() {
+    frontLeftMotor.set(0);
+    frontRightMotor.set(0);
+    backLeftMotor.set(0);
+    backRightMotor.set(0);
 }
 
-float rot_error = 2;
+void oneDimentionalMove(float power, char direction) {
+    // this is straightup just forwards motion in the direction the bot is looking at
 
-void rotPower(float power) {
+    int mult_fwd = 1;
+    int mult_back = -1;
+    switch (direction) {
+        case 'F' :
+                mult_fwd = 1;
+                mult_back = 1;
+                break;
+        case 'B' :
+                mult_fwd = -1;
+                mult_back = -1;
+                break;
+        
+        case 'L' :
+                mult_fwd = -1;
+                mult_back = 1;
+                break;
+        
+        case 'R' :
+                mult_fwd = 1;
+                mult_back = -1;
+                break;
+            
+        default:
+            mult_fwd = 0;
+            mult_back = 0;
+            break;
+    }
+
+    frontLeftMotor.set(power * mult_fwd);
+    frontRightMotor.set(-1 * power * mult_fwd);
+    backLeftMotor.set(-1 * power * mult_back);
+    backRightMotor.set(power * mult_back);
+}
+
+float rot_error = 2; // change to get result wanted
+
+void rotWheels(float power) {
     frontLeftMotor.set(power);
     frontRightMotor.set(power);
-    backLeftMotor.set(power);
-    backLeftMotor.set(power);
+    backLeftMotor.set(-1 * power);
+    backRightMotor.set(-1 * power);
+}
+
+void rotateBot(float power) {
+    float d0 = millis() / 1000.f;
+    rotWheels(mult * power);
+    angle += NoU3.acceleration_z * (millis() - d0);
 }
 
 void rotate(float degrees, float power, bool absRotate = false) {
-    unsigned long d0 = millis()
-    float yaw0 = NoU3.gyroscope_z - yaw;
-    int mult = abs(degrees) / degrees;
+    float yaw0 = angle;
+    int mult = 0;
     if (absRotate) {
-        if ((abs(degrees - yaw0)) > 180) { 
-            mult = -1; 
-        }
-        while (NoU3.gyroscope_z != degrees) {
-
+        float thetaDiff = fmod(degrees - yaw0 + 540.f, 360.f) - 180.f;
+        mult = (thetaDiff >= 0) ? 1 : -1; // switch if wrong pls ( mean +-1 )
+        while (abs(angle - degrees) > rot_error) {
+            /*d0 = millis() / 1000.f;
+            rotWheels(mult * power);
+            angle += NoU3.acceleration_z * (millis()-d0);*/
+            rotateBot(mult * power);
         }
     }
+    else {
+        mult = (degrees == 0) ? 0 : (abs(degrees) / degrees);
+        while (abs(angle - degrees) > rot_error) {
+            /*d0 = millis() / 1000.f;
+            rotWheels(mult * power);
+            angle += NoU3.acceleration_z * (millis() - d0);*/
+            rotateBot(mult * power);
+        }
+    }
+    rotWheels(0);
 
 }
-
-void moveNorth(int cm) {
-    for 
-
-
-}
-
 
 void autoMode(){
     setup();
