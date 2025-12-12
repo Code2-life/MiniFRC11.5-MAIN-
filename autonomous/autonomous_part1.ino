@@ -27,6 +27,9 @@ float clawAngle = 0;
 float angular_scale;
 float measured_angle;
 
+// const float ang_scale = 0.957; // not sure why you need this if you're using imu.calibrate
+const float ang_scale = 1.f; //try with either keep whichever is more accurate
+
 float z_yaw = 0;
 
 void setup() {
@@ -45,7 +48,7 @@ void setup() {
   angular_scale = (5.0 * 2.0 * PI) / measured_angle;
   NoU3.calibrateIMUs(); // Takes exactly 1 second << couldnt tell
 
-    z_yaw = NoU3.yaw;
+    z_yaw = (NoU3.yaw * ang_scale);
 
 }
 
@@ -83,7 +86,7 @@ void getPosition(float lastT){
 
     //stupid conversion to radians and global acceleration because with rotation, the values MAY flip. nah, not may, WILL.
     //ex: rotating 90* will make previous acceleration x the new acceleration y. 90* rotation.
-    float yaw_RAD = (NoU3.yaw - z_yaw) * 0.017f;
+    float yaw_RAD = ((NoU3.yaw * ang_scale) - z_yaw) * 0.017f;
     float g_ax = ax * cos(yaw_RAD) - ay * sin(yaw_RAD); //global_acceleration(x)
     float g_ay = ax * sin(yaw_RAD) + ay * cos(yaw_RAD); // HAHHA NAMING SCHEME WAS NOT INTENDED, I SWEAR LMAOOO
 
@@ -145,7 +148,7 @@ void rotWheels(float power) {
 
 void rotate(float degrees, float power, bool absRotate = false) {
 
-    float yaw0 = NoU3.yaw - z_yaw; //account for starting yaw, probably zero but cant be too safe (it SHOULD be zero)
+    float yaw0 = (NoU3.yaw * ang_scale) - z_yaw; //account for starting yaw, probably zero but cant be too safe (it SHOULD be zero)
     const float yaw_c = yaw0;
     int mult = 0;
     if (absRotate) {
@@ -153,7 +156,7 @@ void rotate(float degrees, float power, bool absRotate = false) {
         mult = (thetaDiff >= 0) ? 1 : -1; // switch if wrong pls ( i mean +-1 )
         while (fabs(thetaDiff) > rot_error) {
             rotWheels(mult * power);
-            yaw0 = NoU3.yaw - z_yaw;
+            yaw0 = (NoU3.yaw * ang_scale) - z_yaw;
             thetaDiff = fmod(degrees - yaw0 + 540.f, 360.f) - 180.f;
         }
     }
@@ -164,7 +167,7 @@ void rotate(float degrees, float power, bool absRotate = false) {
         //mult = (degrees == 0) ? 0 : (fabs(degrees) / degrees);
         while (fabs(thetaDiff) > rot_error) {
             rotWheels(mult * power);
-            yaw0 = NoU3.yaw - z_yaw;
+            yaw0 = (NoU3.yaw * ang_scale) - z_yaw;
             thetaDiff = fmod(degrees - yaw0 + 540.f, 360.f) - 180.f;
 
         }
@@ -176,7 +179,7 @@ bool hasRun = false;
 
 void autoMode(){
     if (hasRun) return;
-    z_yaw = NoU3.yaw; // reiterate because we are waiting for keypress and robot may have been moved
+    z_yaw = (NoU3.yaw * ang_scale); // reiterate because we are waiting for keypress and robot may have been moved
     getPosition(millis());
     if (position.x != 0 || position.y != 0 || vx != 0 || vy != 0){
         position.x = 0;
