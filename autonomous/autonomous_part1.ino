@@ -55,10 +55,7 @@ struct vector2f {
 };
 
 float circumference = 6.28; // 
-
-
 unsigned long started = millis();
-
 
 // ask stone if russel can bring his guitar and play it tmrw at lunch
 void STOP() {
@@ -149,20 +146,27 @@ void rotWheels(float power) {
 void rotate(float degrees, float power, bool absRotate = false) {
 
     float yaw0 = NoU3.yaw - z_yaw; //account for starting yaw, probably zero but cant be too safe (it SHOULD be zero)
+    const float yaw_c = yaw0;
     int mult = 0;
     if (absRotate) {
         float thetaDiff = fmod(degrees - yaw0 + 540.f, 360.f) - 180.f; // funny trick to get rotation between (-180,180]
         mult = (thetaDiff >= 0) ? 1 : -1; // switch if wrong pls ( i mean +-1 )
-        while (abs(yaw0 - degrees) > rot_error) {
+        while (fabs(thetaDiff) > rot_error) {
             rotWheels(mult * power);
             yaw0 = NoU3.yaw - z_yaw;
+            thetaDiff = fmod(degrees - yaw0 + 540.f, 360.f) - 180.f;
         }
     }
     else {
-        mult = (degrees == 0) ? 0 : (abs(degrees) / degrees);
-        while (abs(yaw0 - degrees) > rot_error) {
+        float targetYaw = yaw_c + degrees;
+        float thetaDiff = fmod(targetYaw + 540.f, 360.f) - 180.f;
+        mult = (thetaDiff >= 0) ? 1 : -1;
+        //mult = (degrees == 0) ? 0 : (fabs(degrees) / degrees);
+        while (fabs(thetaDiff) > rot_error) {
             rotWheels(mult * power);
             yaw0 = NoU3.yaw - z_yaw;
+            thetaDiff = fmod(degrees - yaw0 + 540.f, 360.f) - 180.f;
+
         }
     }
     rotWheels(0);
@@ -185,6 +189,7 @@ void autoMode(){
     vector2f oldFolks = {position.x, position.y};
 
     oneDimensionalMove(1, 'F');
+    lastT = millis();
     while(dist < 45){
         getPosition(lastT);
         dist = sqrt(pow((position.x - oldFolks.x), 2) + pow((position.y - oldFolks.y), 2));
@@ -195,6 +200,7 @@ void autoMode(){
     oneDimensionalMove(1,'F');
     oldFolks.x = position.x;
     oldFolks.y = position.y;
+    lastT = millis();
     while(dist < 18) {
         getPosition(lastT);
         dist = sqrt(pow((position.x - oldFolks.x), 2) + pow((position.y - oldFolks.y), 2));
@@ -205,6 +211,7 @@ void autoMode(){
     oneDimensionalMove(1,'F');
     oldFolks.x = position.x;
     oldFolks.y = position.y;
+    lastT = millis();
     while(dist < 17) {
         getPosition(lastT);
         dist = sqrt(pow((position.x - oldFolks.x), 2) + pow((position.y - oldFolks.y), 2));
@@ -215,6 +222,7 @@ void autoMode(){
     oneDimensionalMove(1,'F');
     oldFolks.x = position.x;
     oldFolks.y = position.y;
+    lastT = millis();
     while(dist < 24){
         getPosition(lastT);
         dist = sqrt(pow((position.x - oldFolks.x), 2) + pow((position.y - oldFolks.y), 2));
