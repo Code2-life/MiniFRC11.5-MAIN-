@@ -74,7 +74,7 @@ float vx = 0;
 float vy = 0;
 float lastT = millis() * 0.001f;
 
-void getPosition(){
+void getPosition(float lastT){
     float ax = NoU3.acceleration_x;
     float ay = NoU3.acceleration_y;
 
@@ -173,7 +173,7 @@ bool hasRun = false;
 void autoMode(){
     if (hasRun) return;
     z_yaw = NoU3.yaw; // reiterate because we are waiting for keypress and robot may have been moved
-    getPosition();
+    getPosition(millis());
     if (position.x != 0 || position.y != 0 || vx != 0 || vy != 0){
         position.x = 0;
         position.y = 0;
@@ -186,7 +186,7 @@ void autoMode(){
 
     oneDimensionalMove(1, 'F');
     while(dist < 45){
-        getPosition();
+        getPosition(lastT);
         dist = sqrt(pow((position.x - oldFolks.x), 2) + pow((position.y - oldFolks.y), 2));
     }
     STOP();
@@ -196,7 +196,7 @@ void autoMode(){
     oldFolks.x = position.x;
     oldFolks.y = position.y;
     while(dist < 18) {
-        getPosition();
+        getPosition(lastT);
         dist = sqrt(pow((position.x - oldFolks.x), 2) + pow((position.y - oldFolks.y), 2));
     }
     STOP();
@@ -206,7 +206,7 @@ void autoMode(){
     oldFolks.x = position.x;
     oldFolks.y = position.y;
     while(dist < 17) {
-        getPosition();
+        getPosition(lastT);
         dist = sqrt(pow((position.x - oldFolks.x), 2) + pow((position.y - oldFolks.y), 2));
     }
     STOP();
@@ -216,7 +216,7 @@ void autoMode(){
     oldFolks.x = position.x;
     oldFolks.y = position.y;
     while(dist < 24){
-        getPosition();
+        getPosition(lastT);
         dist = sqrt(pow((position.x - oldFolks.x), 2) + pow((position.y - oldFolks.y), 2));
     }
     STOP();
