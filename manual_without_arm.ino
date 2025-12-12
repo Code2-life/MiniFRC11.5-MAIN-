@@ -18,7 +18,7 @@ NoU_Servo clawServo(3);
 float intakeT = 0;
 float angleI = 45.0; 
 float angleII = 130.0;
-float clawAngle = grab;
+float clawAngle = 0;    // can be ignored
 
 float angular_scale;
 float measured_angle;
@@ -57,7 +57,6 @@ float tuneMotorPower(float input, float deadband, float minPower, float maxPower
   if (scaled < minPower) return 0;
   return sign * scaled;
 }
-
 
 void chassis() {
   if (PestoLink.update()) {
@@ -117,11 +116,3 @@ void chassis() {
     NoU3.setServiceLight(LIGHT_DISABLED);
   }
 }
-
-
-void claw() {
-
-  
-}
-
-

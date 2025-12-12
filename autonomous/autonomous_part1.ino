@@ -2,6 +2,7 @@
 
 #include <constant_s.h> //IMPORTANT
 #include <src/Alfredo_NoU3.h> // cool thing to have
+#include <cmath> // wonderful maths
 
 //do the other includes yourself, constant_s.h is important to this file only.
 
@@ -21,9 +22,12 @@ NoU_Servo clawServo(3);
 float intakeT = 0;
 float angleI = 45.0; 
 float angleII = 130.0;
-float clawAngle = grab;
+float clawAngle = 0;
 
-float yaw = 0;
+float angular_scale;
+float measured_angle;
+
+float z_yaw = 0;
 
 void setup() {
   PestoLink.begin("Minifrc11.5"); //damn i WANT to change the name
@@ -40,6 +44,9 @@ void setup() {
   measured_angle = 32.8275; // Tune this by spinning 5 full times << check this
   angular_scale = (5.0 * 2.0 * PI) / measured_angle;
   NoU3.calibrateIMUs(); // Takes exactly 1 second << couldnt tell
+
+    z_yaw = NoU3.yaw;
+
 }
 
 struct vector2f {
@@ -55,7 +62,7 @@ struct vector3f {
 
 //alias for gyro and accelerometer initial position
 
-float i_pitch =NoU3.gyroscope_x;
+float i_pitch = NoU3.gyroscope_x;
 float i_roll = NoU3.gyroscope_y;
 float i_yaw = NoU3.gyroscope_z; // one most useful here, hopefully its from 0-360. but we can just modulo with 360
 
@@ -63,14 +70,13 @@ float i_accX = NoU3.acceleration_x;
 float i_accY = NoU3.acceleration_y;
 float i_accZ = NoU3.acceleration_z;
 
-float circumference = 4.85; //inches?? fix this!! 2 * 3.14 * radius and round to nearest 100ths place!!!
+float circumference = 6.28; // 
 
 
 unsigned long started = millis();
 
 
 // ask stone if russel can bring his guitar and play it tmrw at lunch
-
 void STOP() {
     frontLeftMotor.set(0);
     frontRightMotor.set(0);
@@ -78,8 +84,32 @@ void STOP() {
     backRightMotor.set(0);
 }
 
-void oneDimentionalMove(float power, char direction) {
-    // this is straightup just forwards motion in the direction the bot is looking at
+vector2f position = {0, 0};
+
+float vx = 0;
+float vy = 0;
+float lastT = millis() * 0.001f;
+
+void getPosition(){
+    float ax = NoU3.acceleration_x;
+    float ay = NoU3.acceleration_y;
+
+    float t0 = millis() * 0.001f;
+    //first x then y
+
+    float t = t0-lastT;
+    lastT = t0;
+
+    
+    position.x += (vx * t) + (0.5f * ax * t*t);
+    vx += ax*t;
+    
+    position.y += (vy * t) + (0.5f * ay * t*t);
+    vy += ay*t;
+
+}
+
+void oneDimensionalMove(float power, char direction) {
 
     int mult_fwd = 1;
     int mult_back = -1;
@@ -124,41 +154,87 @@ void rotWheels(float power) {
     backRightMotor.set(-1 * power);
 }
 
-void rotateBot(float power) {
-    float d0 = millis() / 1000.f;
-    rotWheels(mult * power);
-    angle += NoU3.acceleration_z * (millis() - d0);
-}
+// note to self :  .yaw exists
 
 void rotate(float degrees, float power, bool absRotate = false) {
-    float yaw0 = angle;
+
+    float yaw0 = NoU3.yaw - z_yaw; //account for starting yaw, probably zero but cant be too safe (it SHOULD be zero)
     int mult = 0;
     if (absRotate) {
-        float thetaDiff = fmod(degrees - yaw0 + 540.f, 360.f) - 180.f;
-        mult = (thetaDiff >= 0) ? 1 : -1; // switch if wrong pls ( mean +-1 )
-        while (abs(angle - degrees) > rot_error) {
-            /*d0 = millis() / 1000.f;
+        float thetaDiff = fmod(degrees - yaw0 + 540.f, 360.f) - 180.f; // funny trick to get rotation between (-180,180]
+        mult = (thetaDiff >= 0) ? 1 : -1; // switch if wrong pls ( i mean +-1 )
+        while (abs(yaw0 - degrees) > rot_error) {
             rotWheels(mult * power);
-            angle += NoU3.acceleration_z * (millis()-d0);*/
-            rotateBot(mult * power);
+            yaw0 = NoU3.yaw - z_yaw;
         }
     }
     else {
         mult = (degrees == 0) ? 0 : (abs(degrees) / degrees);
-        while (abs(angle - degrees) > rot_error) {
-            /*d0 = millis() / 1000.f;
+        while (abs(yaw0 - degrees) > rot_error) {
             rotWheels(mult * power);
-            angle += NoU3.acceleration_z * (millis() - d0);*/
-            rotateBot(mult * power);
+            yaw0 = NoU3.yaw - z_yaw;
         }
     }
     rotWheels(0);
-
 }
 
+bool hasRun = false;
+
 void autoMode(){
-    setup();
+    if (hasRun) return;
+    z_yaw = NoU3.yaw; // reiterate because we are waiting for keypress and robot may have been moved
+    getPosition();
+    if (position.x != 0 || position.y != 0 || vx != 0 || vy != 0){
+        position.x = 0;
+        position.y = 0;
+        vx = 0;
+        vy = 0;
+    }
 
-    
+    float dist = 0;
+    vector2f oldFolks = {position.x, position.y};
 
+    oneDimensionalMove(1, 'F');
+    while(dist < 45){
+        getPosition();
+        dist = sqrt(pow((position.x - oldFolks.x), 2) + pow((position.y - oldFolks.y), 2));
+    }
+    STOP();
+
+    rotate(32, 1, true);
+    oneDimensionalMove(1,'F');
+    oldFolks.x = position.x;
+    oldFolks.y = position.y;
+    while(dist < 18) {
+        getPosition();
+        dist = sqrt(pow((position.x - oldFolks.x), 2) + pow((position.y - oldFolks.y), 2));
+    }
+    STOP();
+
+    rotate(122, 1, true);
+    oneDimensionalMove(1,'F');
+    oldFolks.x = position.x;
+    oldFolks.y = position.y;
+    while(dist < 17) {
+        getPosition();
+        dist = sqrt(pow((position.x - oldFolks.x), 2) + pow((position.y - oldFolks.y), 2));
+    }
+    STOP();
+
+    rotate(243, 1, true);
+    oneDimensionalMove(1,'F');
+    oldFolks.x = position.x;
+    oldFolks.y = position.y;
+    while(dist < 24){
+        getPosition();
+        dist = sqrt(pow((position.x - oldFolks.x), 2) + pow((position.y - oldFolks.y), 2));
+    }
+    STOP();
+
+
+    hasRun = true;
+}
+
+void loop(){
+    autoMode();
 }
