@@ -54,22 +54,6 @@ struct vector2f {
     float y;
 };
 
-struct vector3f {
-    float x;
-    float y;
-    float z;
-};
-
-//alias for gyro and accelerometer initial position
-
-float i_pitch = NoU3.gyroscope_x;
-float i_roll = NoU3.gyroscope_y;
-float i_yaw = NoU3.gyroscope_z; // one most useful here, hopefully its from 0-360. but we can just modulo with 360
-
-float i_accX = NoU3.acceleration_x;
-float i_accY = NoU3.acceleration_y;
-float i_accZ = NoU3.acceleration_z;
-
 float circumference = 6.28; // 
 
 
@@ -100,16 +84,22 @@ void getPosition(){
     float t = t0-lastT;
     lastT = t0;
 
+    //stupid conversion to radians and global acceleration because with rotation, the values MAY flip. nah, not may, WILL.
+    //ex: rotating 90* will make previous acceleration x the new acceleration y. 90* rotation.
+    float yaw_RAD = (NoU3.yaw - z_yaw) * 0.017f;
+    float g_ax = ax * cos(yaw_RAD) - ay * sin(yaw_RAD); //global_acceleration(x)
+    float g_ay = ax * sin(yaw_RAD) + ay * cos(yaw_RAD); // HAHHA NAMING SCHEME WAS NOT INTENDED, I SWEAR LMAOOO
+
     
-    position.x += (vx * t) + (0.5f * ax * t*t);
-    vx += ax*t;
+    position.x += (vx * t) + (0.5f * g_ax * t*t);
+    vx += g_ax*t;
     
-    position.y += (vy * t) + (0.5f * ay * t*t);
-    vy += ay*t;
+    position.y += (vy * t) + (0.5f * g_ay * t*t);
+    vy += g_ay*t;
 
 }
 
-void oneDimensionalMove(float power, char direction) {
+void oneDimensionalMove(float power, char direction) { // PLEASE mess with these
 
     int mult_fwd = 1;
     int mult_back = -1;
