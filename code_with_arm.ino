@@ -3,9 +3,9 @@
 #include <constants.h>
 
 // Motors                         
-NoU_Motor frontLeftMotor(4);      
+NoU_Motor frontLeftMotor(8);      
 NoU_Motor frontRightMotor(1);     
-NoU_Motor backLeftMotor(8);       
+NoU_Motor backLeftMotor(4);       
 NoU_Motor backRightMotor(5);      
 NoU_Motor intakeMotor(3);         
 
@@ -41,7 +41,7 @@ void setup() {
   backLeftMotor.setBrakeMode(true);
   backRightMotor.setBrakeMode(true);
 
-  measured_angle = 32.8275; // Tune this by spinning 5 full times
+  measured_angle = 28.42726; // Tune this by spinning 5 full times
   angular_scale = (5.0 * 2.0 * PI) / measured_angle;
   NoU3.calibrateIMUs(); // Takes exactly 1 second
   mode = MANUAL;
@@ -58,16 +58,6 @@ void loop() {
   }
 
 
-float tuneMotorPower(float input, float deadband, float minPower, float maxPower, float exponent = 1.0) {
-  if (fabs(input) < deadband) return 0;
-
-  float sign = (input >= 0) ? 1.0 : -1.0;
-  float curved = pow(fabs(input), exponent);
-  float scaled = curved * maxPower;
-
-  if (scaled < minPower) return 0;
-  return sign * scaled;
-}
 
 
 void manualcode() {
@@ -84,20 +74,10 @@ void manualcode() {
 
 void chassis() {
   if (PestoLink.update()) {
-    float y = -PestoLink.getAxis(1);
-    float x = PestoLink.getAxis(0);
-    float rx = PestoLink.getAxis(2);
+    float y = -PestoLink.getAxis(2);
+    float x = PestoLink.getAxis(3);
+    float rx = PestoLink.getAxis(1);
 
-    // Drive tuning parameters
-    constexpr float DEADBAND = 0.1;
-    constexpr float MIN_POWER = 0.4;
-    constexpr float MAX_POWER = 0.75;
-    constexpr float INPUT_EXPONENT = 1.4;  // Try 1.0 (linear), 2.0 (quadratic), etc.
-
-    // Apply deadband & curve shaping to inputs before rotation math
-    x  = tuneMotorPower(x,  DEADBAND, MIN_POWER, MAX_POWER, INPUT_EXPONENT);
-    y  = tuneMotorPower(y,  DEADBAND, MIN_POWER, MAX_POWER, INPUT_EXPONENT);
-    rx = tuneMotorPower(rx, DEADBAND, MIN_POWER, MAX_POWER, INPUT_EXPONENT);
 
     float botHeading = NoU3.yaw * angular_scale;
 
@@ -113,12 +93,6 @@ void chassis() {
     float frontRightPower = (rotY - rotX - rx) / denominator;
     float backRightPower  = (rotY + rotX - rx) / denominator;
 
-    // Apply motor output shaping after normalization
-    frontLeftPower  = tuneMotorPower(frontLeftPower, 0, MIN_POWER, MAX_POWER);
-    backLeftPower   = tuneMotorPower(backLeftPower,  0, MIN_POWER, MAX_POWER);
-    frontRightPower = tuneMotorPower(frontRightPower, 0, MIN_POWER, MAX_POWER);
-    backRightPower  = tuneMotorPower(backRightPower,  0, MIN_POWER, MAX_POWER);
-
     frontLeftMotor.set(frontLeftPower);
     backLeftMotor.set(backLeftPower);
     frontRightMotor.set(frontRightPower);
@@ -129,7 +103,7 @@ void chassis() {
     float batteryVoltage = NoU3.getBatteryVoltage();
     PestoLink.printBatteryVoltage(batteryVoltage);
 
-    if(PestoLink.buttonHeld(MID_LEFT)){
+    if(PestoLink.buttonPressed(MID_LEFT)){
       NoU3.yaw=0; 
     }
   } else {
@@ -158,7 +132,7 @@ void arm() {
 
 
 void drive_cuh() {
-    float y = 1.0;
+    float y = 10.0;
     float x = 0.0;
     float rx = 0.0;
 
@@ -189,15 +163,18 @@ void drive_cuh() {
 
 
 void autocode() {
-  if (PestoLink.buttonHeld(MID_RIGHT)) {
+  if (PestoLink.buttonHeld(D_DOWN)) {
     PestoLink.printTerminal("Manual mode");
     mode = MANUAL;
     return;
   }
+  int t = 0;
+  while (t < 50) {
   drive_cuh();
+  t += 10;
+  }
   mode = MANUAL;
 
   }
-
 
 
