@@ -10,15 +10,13 @@ NoU_Motor backRightMotor(5);
 NoU_Motor intakeMotor(3);         
 
 // Servos
-NoU_Servo stageI(1);
-NoU_Servo stageII(2);
-NoU_Servo armServo(3);
+NoU_Servo claw(2);
+NoU_Servo armServo(1);
 
-// Global State
-float intakeT = 0;
-float angleI = 45.0; 
-float angleII = 130.0;
-float armAngle = 90;
+float armAngle = -90;
+float clawAngle = 0;
+bool alt = false;
+
 
 enum State { MANUAL, AUTO };
 State mode;
@@ -41,14 +39,25 @@ void setup() {
   backLeftMotor.setBrakeMode(true);
   backRightMotor.setBrakeMode(true);
 
-  measured_angle = -28.42726; // Tune this by spinning 5 full times
+  measured_angle = 32.528; // Tune this by spinning 5 full times
   angular_scale = (5.0 * 2.0 * PI) / measured_angle;
+  armServo.write(armAngle);
+  claw.write(clawAngle);
   NoU3.calibrateIMUs(); // Takes exactly 1 second
   mode = MANUAL;
 }
 
 
 void loop() {
+  char buffer[20];
+  char clawd[20];
+
+
+
+  dtostrf(armAngle, 0, 2, buffer);
+  dtostrf(clawAngle, 0, 2, clawd);
+  PestoLink.printfTerminal("buffer ", buffer);
+  PestoLink.printfTerminal(clawd);
   if (mode==MANUAL) {
     manualcode();
   } else {
@@ -67,6 +76,8 @@ void manualcode() {
   } else {
     chassis();
     arm();
+    clawfunc();
+    claw.write(clawAngle);
     armServo.write(armAngle);
   }
 }
@@ -74,15 +85,15 @@ void manualcode() {
 
 void chassis() {
   if (PestoLink.update()) {
-    float y = -PestoLink.getAxis(1);
-    float x = PestoLink.getAxis(0);
-    float rx = PestoLink.getAxis(2); //yaw
+    float y = -PestoLink.getAxis(2);
+    float x = PestoLink.getAxis(3);
+    float rx = PestoLink.getAxis(1); //yaw
 
 
     float botHeading = NoU3.yaw * angular_scale;
 
-    float rotX = -1 * (x * cos(-botHeading) - y * sin(-botHeading));
-    float rotY = -1 * (x * sin(-botHeading) + y * cos(-botHeading));
+    float rotX = (x * cos(-botHeading) - y * sin(-botHeading));
+    float rotY = (x * sin(-botHeading) + y * cos(-botHeading));
     rotX = rotX * 1.1;
 
     float calc = fabs(rotY) + fabs(rotX) + fabs(rx);
@@ -117,48 +128,79 @@ void chassis() {
 
 
 void arm() {
-  while (PestoLink.buttonHeld(RIGHT_TRIGGER)) {
-      delay(150);
-      armAngle += 15;
+  if (PestoLink.buttonHeld(7)) {
+      if (armAngle + 15 > 180) {
+          armAngle = 180;   // upper bound
+      } else {
+          armAngle = armAngle + 15;
+      }
+      
   }
 
-  while (PestoLink.buttonHeld(LEFT_TRIGGER)) {
-      delay(150);
-      armAngle -= 15;
-
+  if (PestoLink.buttonHeld(6)) {
+      if (armAngle - 15 < 0) {     // lower bound
+          armAngle = 100;
+      } else {
+          armAngle = armAngle - 15;
+      }
   }
-  
 }
 
 
-// void drive_cuh() {
-//     float y = 10.0;
-//     float x = 0.0;
-//     float rx = 0.0;
+void clawfunc() {
+  if (PestoLink.buttonHeld(RIGHT_BUMPER)) {
+    clawAngle = 15;
+  }
 
-//     float botHeading = NoU3.yaw * angular_scale;
+  if (PestoLink.buttonHeld(LEFT_BUMPER)) {
+    clawAngle = 0;
+  }
+}
 
-//     float rotX = x * cos(-botHeading) - y * sin(-botHeading);
-//     float rotY = x * sin(-botHeading) + y * cos(-botHeading);
-//     rotX = rotX * 1.1;
+void drive_cuh() {
+    float y = 0.0;
+    float x = 0.0;
+    float rx = 1.0;
 
-//     float calc = fabs(rotY) + fabs(rotX) + fabs(rx);
-//     float denominator = (calc >= 1) ? calc : 1.0;
+    float botHeading = NoU3.yaw * angular_scale;
 
-//     float frontLeftPower  = (rotY + rotX + rx) / denominator;
-//     float backLeftPower   = (rotY - rotX + rx) / denominator;
-//     float frontRightPower = (rotY - rotX - rx) / denominator;
-//     float backRightPower  = (rotY + rotX - rx) / denominator;
+    float rotX = x * cos(-botHeading) - y * sin(-botHeading);
+    float rotY = x * sin(-botHeading) + y * cos(-botHeading);
+    rotX = rotX * 1.1;
 
-//     frontLeftMotor.set(frontLeftPower);
-//     backLeftMotor.set(backLeftPower);
-//     frontRightMotor.set(frontRightPower);
-//     backRightMotor.set(backRightPower);
-//     NoU3.setServiceLight(LIGHT_ENABLED);
+    float calc = fabs(rotY) + fabs(rotX) + fabs(rx);
+    float denominator = (calc >= 1) ? calc : 1.0;
 
-//     // Battery voltage telemetry
-//     float batteryVoltage = NoU3.getBatteryVoltage();
-//     PestoLink.printBatteryVoltage(batteryVoltage);
-//   }
+    float frontLeftPower  = (rotY + rotX + rx) / denominator;
+    float backLeftPower   = (rotY - rotX + rx) / denominator;
+    float frontRightPower = (rotY - rotX - rx) / denominator;
+    float backRightPower  = (rotY + rotX - rx) / denominator;
 
+    frontLeftMotor.set(frontLeftPower);
+    backLeftMotor.set(backLeftPower);
+    frontRightMotor.set(frontRightPower);
+    backRightMotor.set(backRightPower);
+    NoU3.setServiceLight(LIGHT_ENABLED);
+
+    // Battery voltage telemetry
+    float batteryVoltage = NoU3.getBatteryVoltage();
+    PestoLink.printBatteryVoltage(batteryVoltage);
+  }
+
+void autocode() {
+  // Run drive_cuh() for 5 seconds
+  unsigned long startTime = millis();
+  while (millis() - startTime < 1500) {
+    drive_cuh();
+  }
+
+  // Stop motors after 5 seconds
+  frontLeftMotor.set(0);
+  backLeftMotor.set(0);
+  frontRightMotor.set(0);
+  backRightMotor.set(0);
+
+  // Return to manual mode after auto
+  mode = MANUAL;
+}
 
